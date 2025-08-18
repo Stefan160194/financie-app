@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Správca Financií</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <header class="mb-12 anim-header">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center border-2 border-gray-700">
+                        <svg class="w-6 h-6 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-200">Finančný Prehľad</h1>
+                        <p class="text-sm text-gray-400">Vitajte späť!</p>
+                    </div>
+                </div>
+                 <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-gray-400 font-bold text-sm">
+                    S
+                </div>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 anim-main">
+            <!-- Left Column: Controls & Summary -->
+            <div class="lg:col-span-1 flex flex-col gap-8">
+                <!-- Overall Balance Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="balance">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Celkový Stav Účtu</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <p id="currentBalanceDisplay" class="text-4xl font-bold text-center text-green-400">0.00 €</p>
+                    </div>
+                </div>
+
+                <!-- Settings Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="settings">
+                     <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Nastavenia</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="initialBalance" class="block text-sm font-medium text-gray-300 mb-1">Počiatočný Stav Účtu (€)</label>
+                                <input type="number" id="initialBalance" placeholder="napr. 2500" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                            <hr class="border-gray-700">
+                            <div>
+                                <label for="monthlyLimit" class="block text-sm font-medium text-gray-300 mb-1">Mesačný Limit Výdavkov (€) <span class="text-xs text-gray-500">(pre aktuálny mesiac)</span></label>
+                                <input type="number" id="monthlyLimit" placeholder="napr. 1000" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                            <div>
+                                <label for="dailyLimit" class="block text-sm font-medium text-gray-300 mb-1">Denný Limit Výdavkov (€) <span class="text-xs text-gray-500">(pre aktuálny mesiac)</span></label>
+                                <input type="number" id="dailyLimit" placeholder="napr. 30" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                            <button id="saveSettingsBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105">
+                                Uložiť Nastavenia
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Management Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="categories">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Správa Kategórií</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <form id="categoryForm" class="space-y-4">
+                            <div class="flex gap-2">
+                                <input type="text" id="categoryIcon" placeholder="Ikona" maxlength="2" class="w-16 text-center bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                                <input type="text" id="categoryName" placeholder="Názov novej kategórie" required class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                            <div class="flex gap-4">
+                                <label class="flex items-center p-2 bg-gray-900 rounded-lg cursor-pointer flex-1">
+                                    <input type="radio" name="categoryType" value="expense" class="h-4 w-4 text-red-500 border-gray-600 focus:ring-red-500" checked>
+                                    <span class="ml-2 text-red-400 text-sm">Výdavok</span>
+                                </label>
+                                <label class="flex items-center p-2 bg-gray-900 rounded-lg cursor-pointer flex-1">
+                                    <input type="radio" name="categoryType" value="income" class="h-4 w-4 text-green-500 border-gray-600 focus:ring-green-500">
+                                    <span class="ml-2 text-green-400 text-sm">Príjem</span>
+                                </label>
+                            </div>
+                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition">Pridať Kategóriu</button>
+                        </form>
+                        <div class="mt-4 max-h-40 overflow-y-auto pr-2">
+                            <ul id="categoryList" class="space-y-2"></ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Category Filter Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="filter">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Filter Kategórií</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <div class="flex justify-between mb-2">
+                            <button id="selectAllCategoriesBtn" class="text-xs text-blue-400 hover:underline">Označiť Všetky</button>
+                            <button id="deselectAllCategoriesBtn" class="text-xs text-blue-400 hover:underline">Odznačiť Všetky</button>
+                        </div>
+                        <div id="categoryFilterList" class="max-h-40 overflow-y-auto pr-2 space-y-2">
+                            <!-- Filters will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="data">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Správa Dát</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <div class="space-y-4">
+                            <button id="exportDataBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                                Exportovať Dáta
+                            </button>
+                            <button id="importDataBtn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                                Importovať Dáta
+                            </button>
+                            <input type="file" id="importFileInput" class="hidden" accept="application/json">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="summary">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Sumár za Mesiac</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Príjmy:</span>
+                                <span id="monthlyIncome" class="font-semibold text-green-400">0.00 €</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-300">Výdavky:</span>
+                                <span id="totalSpent" class="font-semibold text-red-400">0.00 €</span>
+                            </div>
+                            <hr class="border-gray-700 my-2">
+                             <div class="flex justify-between">
+                                <span class="text-gray-300">Zostatok za mesiac:</span>
+                                <span id="monthlyBalance" class="font-bold text-xl">0.00 €</span>
+                            </div>
+                             <div class="flex justify-between text-sm mt-1">
+                                <span class="text-gray-400">Priemerný denný výdavok:</span>
+                                <span id="avgDailyExpense" class="font-semibold">0.00 €</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-4 mt-4">
+                            <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-teal-400 h-4 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center text-sm text-gray-400 mt-2">
+                            Limit výdavkov: <span id="summaryMonthlyLimit" class="font-semibold">0.00 €</span>
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-gray-700">
+                             <h3 class="text-lg font-semibold mb-2">Dnešný stav výdavkov</h3>
+                             <p id="dailyStatus" class="text-center text-gray-400">Zadaj denný limit pre sledovanie.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Form & Table -->
+            <div class="lg:col-span-2 flex flex-col gap-8 anim-main">
+                <!-- Add Transaction Form -->
+                <div class="bg-gray-800 p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-4">Pridať Záznam</h2>
+                    <form id="transactionForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Typ Záznamu</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer flex-1">
+                                    <input type="radio" name="transactionType" value="expense" class="h-4 w-4 text-red-500 border-gray-600 focus:ring-red-500" checked>
+                                    <span class="ml-3 text-red-400 font-semibold">Výdavok</span>
+                                </label>
+                                <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer flex-1">
+                                    <input type="radio" name="transactionType" value="income" class="h-4 w-4 text-green-500 border-gray-600 focus:ring-green-500">
+                                    <span class="ml-3 text-green-400 font-semibold">Príjem</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                             <div>
+                                <label for="description" class="block text-sm font-medium text-gray-300 mb-1">Popis</label>
+                                <input type="text" id="description" placeholder="Nákup potravín / Výplata" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                             <div>
+                                <label for="categorySelect" class="block text-sm font-medium text-gray-300 mb-1">Kategória</label>
+                                <select id="categorySelect" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"></select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div>
+                                <label for="transactionDate" class="block text-sm font-medium text-gray-300 mb-1">Dátum</label>
+                                <input type="date" id="transactionDate" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                            <div>
+                                <label for="amount" class="block text-sm font-medium text-gray-300 mb-1">Suma (€)</label>
+                                <input type="number" id="amount" placeholder="25.50" step="0.01" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105">
+                                Pridať
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+                    <div class="p-6 flex justify-between items-center">
+                        <h2 class="text-2xl font-semibold">Zoznam Transakcií</h2>
+                        <div class="flex items-center gap-4">
+                            <button id="prevMonthBtn" class="p-2 rounded-full hover:bg-gray-700 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <span id="currentMonthDisplay" class="text-lg font-semibold w-32 text-center"></span>
+                            <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-700 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-700/50">
+                                <tr>
+                                    <th class="p-4 text-sm font-semibold uppercase tracking-wider">Dátum</th>
+                                    <th class="p-4 text-sm font-semibold uppercase tracking-wider">Popis</th>
+                                    <th class="p-4 text-sm font-semibold uppercase tracking-wider">Kategória</th>
+                                    <th class="p-4 text-sm font-semibold uppercase tracking-wider text-right">Suma</th>
+                                    <th class="p-4 text-sm font-semibold uppercase tracking-wider text-center">Akcia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionTableBody">
+                                <!-- Rows will be inserted here -->
+                            </tbody>
+                        </table>
+                         <p id="noTransactionsMessage" class="text-center text-gray-500 py-8">Zatiaľ žiadne transakcie v tomto mesiaci.</p>
+                    </div>
+                </div>
+                
+                <!-- Chart Section -->
+                <div class="bg-gray-800 p-6 rounded-2xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-semibold">Mesačný Prehľad</h2>
+                        <div id="chartToggle" class="flex rounded-lg bg-gray-700 p-1">
+                            <button data-view="both" class="chart-toggle-btn active px-3 py-1 text-sm font-semibold rounded-md">Oboje</button>
+                            <button data-view="expense" class="chart-toggle-btn px-3 py-1 text-sm font-semibold rounded-md">Výdavky</button>
+                            <button data-view="income" class="chart-toggle-btn px-3 py-1 text-sm font-semibold rounded-md">Príjmy</button>
+                        </div>
+                    </div>
+                    <div class="relative h-96">
+                        <canvas id="expensesChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+        
+        <!-- Message Box -->
+        <div id="messageBox" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 translate-y-10 transition-all duration-300">
+            Správa
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 class="text-lg font-semibold mb-4" id="modalTitle">Naozaj chcete odstrániť tento záznam?</h3>
+                <div class="flex justify-end space-x-4">
+                    <button id="cancelButton" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition">Zrušiť</button>
+                    <button id="confirmButton" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">Odstrániť</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Transaction Modal -->
+        <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 class="text-lg font-semibold mb-4">Upraviť Záznam</h3>
+                <form id="editForm">
+                    <input type="hidden" id="editTransactionId">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Typ Záznamu</label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer flex-1">
+                                <input type="radio" name="editTransactionType" value="expense" class="h-4 w-4 text-red-500 border-gray-600 focus:ring-red-500">
+                                <span class="ml-3 text-red-400 font-semibold">Výdavok</span>
+                            </label>
+                            <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer flex-1">
+                                <input type="radio" name="editTransactionType" value="income" class="h-4 w-4 text-green-500 border-gray-600 focus:ring-green-500">
+                                <span class="ml-3 text-green-400 font-semibold">Príjem</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                         <div>
+                            <label for="editCategorySelect" class="block text-sm font-medium text-gray-300 mb-1">Kategória</label>
+                            <select id="editCategorySelect" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"></select>
+                        </div>
+                        <div>
+                            <label for="editDescription" class="block text-sm font-medium text-gray-300 mb-1">Popis</label>
+                            <input type="text" id="editDescription" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label for="editDate" class="block text-sm font-medium text-gray-300 mb-1">Dátum</label>
+                            <input type="date" id="editDate" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label for="editAmount" class="block text-sm font-medium text-gray-300 mb-1">Suma (€)</label>
+                            <input type="number" id="editAmount" step="0.01" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-4 mt-6">
+                        <button type="button" id="cancelEditButton" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition">Zrušiť</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">Uložiť</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Category Modal -->
+        <div id="editCategoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 class="text-lg font-semibold mb-4">Upraviť Kategóriu</h3>
+                <form id="editCategoryForm">
+                    <input type="hidden" id="editCategoryId">
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <input type="text" id="editCategoryIcon" placeholder="Ikona" maxlength="2" class="w-16 text-center bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            <input type="text" id="editCategoryName" placeholder="Názov kategórie" required class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+                         <div class="flex gap-4">
+                            <label class="flex items-center p-2 bg-gray-900 rounded-lg cursor-pointer flex-1">
+                                <input type="radio" name="editCategoryType" value="expense" class="h-4 w-4 text-red-500 border-gray-600 focus:ring-red-500">
+                                <span class="ml-2 text-red-400 text-sm">Výdavok</span>
+                            </label>
+                            <label class="flex items-center p-2 bg-gray-900 rounded-lg cursor-pointer flex-1">
+                                <input type="radio" name="editCategoryType" value="income" class="h-4 w-4 text-green-500 border-gray-600 focus:ring-green-500">
+                                <span class="ml-2 text-green-400 text-sm">Príjem</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-4 mt-6">
+                        <button type="button" id="cancelEditCategoryButton" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition">Zrušiť</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">Uložiť Zmeny</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/locale/sk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="main.js" type="module"></script>
+</body>
+</html>

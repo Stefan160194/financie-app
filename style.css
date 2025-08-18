@@ -1,0 +1,56 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Style for date picker icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.8);
+}
+
+/* Card collapse animation */
+.card-content {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.5s ease-in-out;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.card-open .card-content {
+    max-height: 1000px; /* A large enough value to not clip content */
+    opacity: 1;
+    padding-bottom: 1.5rem; /* 24px */
+}
+
+.toggle-card-btn svg {
+    transition: transform 0.3s ease-in-out;
+}
+
+.card-open .toggle-card-btn svg {
+    transform: rotate(180deg);
+}
+
+/* Chart Toggle Button Styles */
+.chart-toggle-btn {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.chart-toggle-btn.active {
+    background-color: #4f46e5; /* Indigo-600 */
+    color: white;
+}
+
+.chart-toggle-btn:not(.active) {
+    color: #9ca3af; /* Gray-400 */
+}
