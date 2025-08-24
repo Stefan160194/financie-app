@@ -5,6 +5,7 @@ import * as ui from './ui.js';
 let currentDate = new Date(); // To track the currently viewed month
 let currentChartView = 'both'; // 'both', 'expense', 'income'
 let activeCategoryFilters = new Set();
+let appData = {}; // Lokálna kópia všetkých dát
 
 // --- DOM Elements ---
 const initialBalanceInput = document.getElementById('initialBalance');
@@ -67,9 +68,13 @@ const uiElementsForSummary = {
     progressBar, dailyStatusEl, currentBalanceDisplay, avgDailyExpenseEl
 };
 
-function refreshDisplayForCurrentMonth() {
+// Hlavná funkcia na prekreslenie celého UI
+function refreshDisplay() {
+    if (!appData || !appData.transactions) return; // Počkaj, kým sa načítajú dáta
+
     ui.updateMonthDisplay(currentMonthDisplay, currentDate);
-    const { transactions: allTransactions, limits, balance, categories } = storage.loadAllData();
+    
+    const { transactions: allTransactions, limits, balance, categories } = appData;
     
     initialBalanceInput.value = balance || '';
     
@@ -86,11 +91,9 @@ function refreshDisplayForCurrentMonth() {
         return !tDate.isBefore(startOfMonth) && !tDate.isAfter(endOfMonth);
     });
 
-    // Apply category filter
-    if (activeCategoryFilters.size > 0) {
-        filteredTransactions = filteredTransactions.filter(t => activeCategoryFilters.has(t.categoryId) || t.categoryId === null);
+    if (activeCategoryFilters.size > 0 && activeCategoryFilters.size < categories.length) {
+        filteredTransactions = filteredTransactions.filter(t => activeCategoryFilters.has(t.categoryId) || !t.categoryId);
     }
-
 
     filteredTransactions.sort((a, b) => b.createdAt - a.createdAt);
     
@@ -101,6 +104,28 @@ function refreshDisplayForCurrentMonth() {
     ui.renderCategoryFilters(categoryFilterList, categories, activeCategoryFilters);
     const currentTransactionType = transactionForm.querySelector('input[name="transactionType"]:checked').value;
     ui.populateCategoryDropdowns(categories, currentTransactionType, categorySelect);
+}
+
+// Funkcia, ktorá sa zavolá vždy, keď prídu nové dáta z Firebase
+function handleDataUpdate(data) {
+    const isFirstLoad = !appData.transactions;
+    appData = data;
+
+    if (isFirstLoad) {
+        const { cardStates, categories } = data;
+        document.querySelectorAll('.card-wrapper').forEach(card => {
+            const cardId = card.dataset.cardId;
+            const savedState = cardStates[cardId];
+            if (savedState === 'closed') {
+                card.classList.remove('card-open');
+            } else {
+                card.classList.add('card-open');
+            }
+        });
+        categories.forEach(cat => activeCategoryFilters.add(cat.id));
+    }
+    
+    refreshDisplay();
 }
 
 // --- Modal Logic ---
@@ -116,7 +141,7 @@ const openConfirmationModal = (title) => {
 const closeConfirmationModal = () => confirmationModal.classList.add('hidden');
 
 const openEditModal = (transaction) => {
-    const { categories } = storage.loadAllData();
+    const { categories } = appData;
     editTransactionIdInput.value = transaction.id;
     editDescriptionInput.value = transaction.description;
     editAmountInput.value = transaction.amount;
@@ -155,19 +180,19 @@ cancelEditCategoryButton.addEventListener('click', closeEditCategoryModal);
 
 prevMonthBtn.addEventListener('click', () => {
     currentDate.setMonth(currentDate.getMonth() - 1);
-    refreshDisplayForCurrentMonth();
+    refreshDisplay();
 });
 
 nextMonthBtn.addEventListener('click', () => {
     currentDate.setMonth(currentDate.getMonth() + 1);
-    refreshDisplayForCurrentMonth();
+    refreshDisplay();
 });
 
 saveSettingsBtn.addEventListener('click', () => {
     const initialBalance = parseFloat(initialBalanceInput.value) || 0;
     storage.saveBalance(initialBalance);
 
-    const { limits } = storage.loadAllData();
+    const { limits } = appData;
     const currentMonthKey = dayjs(currentDate).format('YYYY-MM');
     const monthly = parseFloat(monthlyLimitInput.value) || 0;
     const daily = parseFloat(dailyLimitInput.value) || 0;
@@ -175,7 +200,6 @@ saveSettingsBtn.addEventListener('click', () => {
     storage.saveAllLimits(limits);
 
     ui.showMessage(messageBox, 'Nastavenia úspešne uložené!');
-    refreshDisplayForCurrentMonth();
 });
 
 transactionForm.addEventListener('submit', (e) => {
@@ -192,7 +216,7 @@ transactionForm.addEventListener('submit', (e) => {
 
     if (amount > 0 && dateValue) {
         const createdAtDate = dayjs(dateValue).startOf('day').add(12, 'hour').toDate();
-        const { transactions } = storage.loadAllData();
+        const { transactions } = appData;
         
         const newTransaction = {
             id: Date.now().toString(),
@@ -209,7 +233,6 @@ transactionForm.addEventListener('submit', (e) => {
         ui.showMessage(messageBox, 'Záznam pridaný!');
         
         currentDate = createdAtDate;
-        refreshDisplayForCurrentMonth();
 
         descriptionInput.value = '';
         amountInput.value = '';
@@ -231,7 +254,7 @@ editForm.addEventListener('submit', (e) => {
     const newCategoryId = editCategorySelect.value || null;
 
     if (newAmount > 0 && newDateValue) {
-        let { transactions } = storage.loadAllData();
+        let { transactions } = appData;
         const transactionIndex = transactions.findIndex(t => t.id === transactionId);
         
         if (transactionIndex > -1) {
@@ -240,7 +263,6 @@ editForm.addEventListener('submit', (e) => {
             ui.showMessage(messageBox, 'Záznam úspešne upravený!');
             closeEditModal();
             currentDate = transactions[transactionIndex].createdAt;
-            refreshDisplayForCurrentMonth();
         }
     }
 });
@@ -251,7 +273,7 @@ transactionTableBody.addEventListener('click', async (e) => {
 
     if (editBtn) {
         const docId = editBtn.dataset.id;
-        const { transactions } = storage.loadAllData();
+        const { transactions } = appData;
         const transactionToEdit = transactions.find(t => t.id === docId);
         if (transactionToEdit) {
             openEditModal(transactionToEdit);
@@ -262,17 +284,16 @@ transactionTableBody.addEventListener('click', async (e) => {
         const docId = deleteBtn.dataset.id;
         const confirmed = await openConfirmationModal('Naozaj chcete odstrániť tento záznam?');
         if (confirmed) {
-            let { transactions } = storage.loadAllData();
+            let { transactions } = appData;
             transactions = transactions.filter(t => t.id !== docId);
             storage.saveTransactions(transactions);
             ui.showMessage(messageBox, 'Záznam odstránený.');
-            refreshDisplayForCurrentMonth();
         }
     }
 });
 
 exportDataBtn.addEventListener('click', () => {
-    const data = storage.loadAllData();
+    const data = appData;
     const dataString = JSON.stringify(data, null, 2);
     const blob = new Blob([dataString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -306,7 +327,6 @@ importFileInput.addEventListener('change', async (event) => {
                     storage.saveCategories(importedData.categories);
                     ui.showMessage(messageBox, 'Dáta úspešne importované!');
                     currentDate = new Date();
-                    refreshDisplayForCurrentMonth();
                 }
             } else {
                 throw new Error('Neplatný formát súboru.');
@@ -327,14 +347,13 @@ categoryForm.addEventListener('submit', (e) => {
     const icon = categoryIconInput.value.trim() || '💼';
     const type = categoryForm.querySelector('input[name="categoryType"]:checked').value;
     if (name) {
-        const { categories } = storage.loadAllData();
+        const { categories } = appData;
         const newCategory = { id: `cat-${Date.now()}`, name, type, icon };
         categories.push(newCategory);
         storage.saveCategories(categories);
         ui.showMessage(messageBox, 'Kategória pridaná!');
         categoryNameInput.value = '';
         categoryIconInput.value = '';
-        refreshDisplayForCurrentMonth();
     }
 });
 
@@ -346,14 +365,13 @@ editCategoryForm.addEventListener('submit', (e) => {
     const type = editCategoryForm.querySelector('input[name="editCategoryType"]:checked').value;
 
     if (name) {
-        let { categories } = storage.loadAllData();
+        let { categories } = appData;
         const catIndex = categories.findIndex(c => c.id === id);
         if (catIndex > -1) {
             categories[catIndex] = { id, name, icon, type };
             storage.saveCategories(categories);
             ui.showMessage(messageBox, 'Kategória upravená!');
             closeEditCategoryModal();
-            refreshDisplayForCurrentMonth();
         }
     }
 });
@@ -361,7 +379,7 @@ editCategoryForm.addEventListener('submit', (e) => {
 categoryList.addEventListener('click', async (e) => {
     const editBtn = e.target.closest('.edit-category-btn');
     const deleteBtn = e.target.closest('.delete-category-btn');
-    const { categories } = storage.loadAllData();
+    const { categories } = appData;
 
     if (editBtn) {
         const id = editBtn.dataset.id;
@@ -378,21 +396,20 @@ categoryList.addEventListener('click', async (e) => {
             const updatedCategories = categories.filter(c => c.id !== id);
             storage.saveCategories(updatedCategories);
             ui.showMessage(messageBox, 'Kategória zmazaná.');
-            refreshDisplayForCurrentMonth();
         }
     }
 });
 
 transactionForm.querySelectorAll('input[name="transactionType"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
-        const { categories } = storage.loadAllData();
+        const { categories } = appData;
         ui.populateCategoryDropdowns(categories, e.target.value, categorySelect);
     });
 });
 
 editForm.querySelectorAll('input[name="editTransactionType"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
-        const { categories } = storage.loadAllData();
+        const { categories } = appData;
         ui.populateCategoryDropdowns(categories, e.target.value, editCategorySelect);
     });
 });
@@ -402,7 +419,7 @@ cardHeaders.forEach(header => {
         const card = header.closest('.card-wrapper');
         card.classList.toggle('card-open');
         
-        const { cardStates } = storage.loadAllData();
+        const { cardStates } = appData;
         const cardId = card.dataset.cardId;
         const newState = card.classList.contains('card-open') ? 'open' : 'closed';
         cardStates[cardId] = newState;
@@ -415,7 +432,7 @@ chartToggle.addEventListener('click', (e) => {
         currentChartView = e.target.dataset.view;
         chartToggle.querySelectorAll('.chart-toggle-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
-        refreshDisplayForCurrentMonth();
+        refreshDisplay();
     }
 });
 
@@ -427,40 +444,34 @@ categoryFilterList.addEventListener('change', (e) => {
         } else {
             activeCategoryFilters.delete(categoryId);
         }
-        refreshDisplayForCurrentMonth();
+        refreshDisplay();
     }
 });
 
 selectAllCategoriesBtn.addEventListener('click', () => {
-    const { categories } = storage.loadAllData();
+    const { categories } = appData;
     categories.forEach(cat => activeCategoryFilters.add(cat.id));
-    refreshDisplayForCurrentMonth();
+    refreshDisplay();
 });
 
 deselectAllCategoriesBtn.addEventListener('click', () => {
     activeCategoryFilters.clear();
-    refreshDisplayForCurrentMonth();
+    refreshDisplay();
 });
 
 
 // --- Initialization ---
 function init() {
-    const { cardStates, categories } = storage.loadAllData();
-    document.querySelectorAll('.card-wrapper').forEach(card => {
-        const cardId = card.dataset.cardId;
-        const savedState = cardStates[cardId];
-        if (savedState === 'closed') {
-            card.classList.remove('card-open');
-        } else {
-            card.classList.add('card-open');
+    storage.listenForDataChanges(
+        (data) => {
+            handleDataUpdate(data);
+        },
+        (error) => {
+            ui.showMessage(messageBox, "Nepodarilo sa pripojiť k databáze. Skontrolujte nastavenia Firebase.", "error");
         }
-    });
-
-    // Initially, all categories are active
-    categories.forEach(cat => activeCategoryFilters.add(cat.id));
+    );
 
     transactionDateInput.value = dayjs().format('YYYY-MM-DD');
-    refreshDisplayForCurrentMonth();
 }
 
 init();
