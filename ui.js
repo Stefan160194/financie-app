@@ -1,5 +1,6 @@
 let barChartInstance = null;
 let pieChartInstance = null;
+let lineChartInstance = null;
 
 export function formatCurrency(value) {
     return new Intl.NumberFormat('sk-SK', { style: 'currency', currency: 'EUR' }).format(value);
@@ -17,13 +18,13 @@ export function updateMonthDisplay(currentMonthDisplay, currentDate) {
     currentMonthDisplay.textContent = dayjs(currentDate).format('MMMM YYYY');
 };
 
-export function renderBarChart(chartCanvas, currentDate, transactions, chartView = 'both') {
+export function renderBarChart(chartCanvas, currentDate, transactionsForCurrentMonth, allTransactions, initialBalance, chartView = 'both') {
     const daysInMonth = dayjs(currentDate).daysInMonth();
     const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const incomeData = Array(daysInMonth).fill(0);
     const expenseData = Array(daysInMonth).fill(0);
 
-    transactions.forEach(transaction => {
+    transactionsForCurrentMonth.forEach(transaction => {
         const dayOfMonth = dayjs(transaction.createdAt).date();
         if (transaction.type === 'income') {
             incomeData[dayOfMonth - 1] += transaction.amount;
@@ -32,31 +33,67 @@ export function renderBarChart(chartCanvas, currentDate, transactions, chartView
         }
     });
 
+    // --- Balance Line Calculation ---
+    const startOfMonth = dayjs(currentDate).startOf('month');
+    
+    // 1. Calculate balance at the beginning of the month
+    const balanceBeforeMonth = allTransactions
+        .filter(t => dayjs(t.createdAt).isBefore(startOfMonth))
+        .reduce((balance, t) => {
+            return t.type === 'income' ? balance + t.amount : balance - t.amount;
+        }, initialBalance);
+
+    // 2. Calculate daily balance changes for the current month
+    const balanceData = [];
+    let currentBalance = balanceBeforeMonth;
+
+    for (let i = 0; i < daysInMonth; i++) {
+        currentBalance += incomeData[i] - expenseData[i];
+        balanceData.push(currentBalance);
+    }
+    
     if (barChartInstance) {
         barChartInstance.destroy();
     }
 
     const datasets = [];
 
+    // Bar datasets
     if (chartView === 'income' || chartView === 'both') {
         datasets.push({
-            label: 'Príjmy (€)',
+            type: 'bar',
+            label: 'Príjmy',
             data: incomeData,
             backgroundColor: 'rgba(74, 222, 128, 0.5)',
             borderColor: 'rgba(74, 222, 128, 1)',
-            borderWidth: 1,
-            borderRadius: 5
+            yAxisID: 'y',
         });
     }
 
     if (chartView === 'expense' || chartView === 'both') {
         datasets.push({
-            label: 'Výdavky (€)',
+            type: 'bar',
+            label: 'Výdavky',
             data: expenseData,
             backgroundColor: 'rgba(248, 113, 113, 0.5)',
             borderColor: 'rgba(248, 113, 113, 1)',
-            borderWidth: 1,
-            borderRadius: 5
+            yAxisID: 'y',
+        });
+    }
+
+    // Balance Line dataset
+    if (chartView === 'both') {
+        datasets.push({
+            type: 'line',
+            label: 'Zostatok',
+            data: balanceData,
+            borderColor: '#f59e0b', // amber-500
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            yAxisID: 'yBalance',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 2,
+            pointHitRadius: 10
         });
     }
 
@@ -70,6 +107,10 @@ export function renderBarChart(chartCanvas, currentDate, transactions, chartView
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
                 legend: {
                     display: true,
@@ -87,13 +128,21 @@ export function renderBarChart(chartCanvas, currentDate, transactions, chartView
             },
             scales: {
                 y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
                     beginAtZero: true,
-                    ticks: {
-                        color: '#9ca3af'
-                    },
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: '#4b5563' }
+                },
+                yBalance: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    ticks: { color: '#f59e0b' },
                     grid: {
-                        color: '#4b5563'
-                    }
+                        drawOnChartArea: false, 
+                    },
                 },
                 x: {
                     ticks: {
@@ -113,7 +162,6 @@ export function renderPieChart(chartCanvas, transactions, categories) {
         pieChartInstance.destroy();
     }
 
-    // A more professional color palette
     const PIE_CHART_COLORS = [
         '#4338ca', '#db2777', '#f59e0b', '#10b981', '#2563eb',
         '#9333ea', '#ec4899', '#facc15', '#22c55e', '#3b82f6',
@@ -149,7 +197,7 @@ export function renderPieChart(chartCanvas, transactions, categories) {
         backgroundColors.push(PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]);
     });
     
-    const totalExpenses = data.reduce((sum, value) => sum + value, 0);
+    const initialTotalExpenses = data.reduce((sum, value) => sum + value, 0);
 
     if (data.length === 0) {
         const ctx = chartCanvas.getContext('2d');
@@ -161,42 +209,50 @@ export function renderPieChart(chartCanvas, transactions, categories) {
         return;
     }
 
-    // Custom plugin to draw text in the center of the doughnut chart
     const centerTextPlugin = {
         id: 'centerText',
         afterDraw: (chart) => {
+            let visibleTotal = 0;
+            const chartData = chart.data.datasets[0].data;
+
+            for (let i = 0; i < chartData.length; i++) {
+                if (chart.getDataVisibility(i)) {
+                    visibleTotal += chartData[i];
+                }
+            }
+
             const { ctx } = chart;
-            if (totalExpenses === 0) return;
+            const meta = chart.getDatasetMeta(0);
+            
+            if (!meta.data.length) return;
 
             ctx.save();
-            const centerX = chart.getDatasetMeta(0).data[0].x;
-            const centerY = chart.getDatasetMeta(0).data[0].y;
+            const centerX = meta.data[0].x;
+            const centerY = meta.data[0].y;
             
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
 
-            // Total Amount Text
             ctx.font = 'bold 2rem Inter, sans-serif';
-            ctx.fillStyle = '#f9fafb'; // text-gray-50
-            ctx.fillText(formatCurrency(totalExpenses), centerX, centerY - 15);
+            ctx.fillStyle = '#f9fafb';
+            ctx.fillText(formatCurrency(visibleTotal), centerX, centerY - 15);
 
-            // Label Text
-            ctx.font = '0.875rem Inter, sans-serif'; // text-sm
-            ctx.fillStyle = '#9ca3af'; // text-gray-400
-            ctx.fillText('Celkové výdavky', centerX, centerY + 15);
+            ctx.font = '0.875rem Inter, sans-serif';
+            ctx.fillStyle = '#9ca3af';
+            ctx.fillText('Zobrazené výdavky', centerX, centerY + 15);
             ctx.restore();
         }
     };
 
     pieChartInstance = new Chart(chartCanvas, {
-        type: 'doughnut', // Changed from 'pie' to 'doughnut'
+        type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Výdavky podľa kategórií',
                 data: data,
                 backgroundColor: backgroundColors,
-                borderColor: '#1f2937', // bg-gray-800
+                borderColor: '#1f2937',
                 borderWidth: 3,
                 hoverOffset: 10
             }]
@@ -204,17 +260,23 @@ export function renderPieChart(chartCanvas, transactions, categories) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '70%', // This creates the doughnut hole
+            cutout: '70%',
             plugins: {
                 legend: {
-                    position: 'right', // Move legend to the right
+                    position: 'right',
                     labels: {
-                        color: '#d1d5db', // text-gray-300
+                        color: '#d1d5db',
                         boxWidth: 20,
                         padding: 20,
                         font: {
                             size: 14
                         }
+                    },
+                    onClick: (e, legendItem, legend) => {
+                        const index = legendItem.index;
+                        const ci = legend.chart;
+                        ci.toggleDataVisibility(index);
+                        ci.update();
                     }
                 },
                 tooltip: {
@@ -227,7 +289,7 @@ export function renderPieChart(chartCanvas, transactions, categories) {
                             return `${label}: ${formatCurrency(value)} (${percentage}%)`;
                         }
                     },
-                    backgroundColor: '#374151', // bg-gray-700
+                    backgroundColor: '#374151',
                     titleFont: { size: 16 },
                     bodyFont: { size: 14 },
                     padding: 10,
@@ -235,7 +297,87 @@ export function renderPieChart(chartCanvas, transactions, categories) {
                 }
             }
         },
-        plugins: [centerTextPlugin] // Register the custom plugin
+        plugins: [centerTextPlugin]
+    });
+}
+
+export function renderLineChart(chartCanvas, allTransactions) {
+    if (lineChartInstance) {
+        lineChartInstance.destroy();
+    }
+
+    const labels = [];
+    const data = [];
+    const today = dayjs();
+
+    for (let i = 5; i >= 0; i--) {
+        const month = today.subtract(i, 'month');
+        labels.push(month.format('MMM YYYY'));
+
+        const startOfMonth = month.startOf('month');
+        const endOfMonth = month.endOf('month');
+
+        const monthlyExpenses = allTransactions
+            .filter(t => {
+                const transactionDate = dayjs(t.createdAt);
+                return t.type === 'expense' && 
+                       !transactionDate.isBefore(startOfMonth) && 
+                       !transactionDate.isAfter(endOfMonth);
+            })
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        data.push(monthlyExpenses);
+    }
+
+    const ctx = chartCanvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, chartCanvas.height);
+    gradient.addColorStop(0, 'rgba(79, 70, 229, 0.5)');
+    gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+
+    lineChartInstance = new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Mesačné výdavky (€)',
+                data: data,
+                borderColor: '#6366f1', // indigo-500
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#6366f1',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#4f46e5'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Výdavky: ${formatCurrency(context.raw)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: '#4b5563' }
+                },
+                x: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { display: false }
+                }
+            }
+        }
     });
 }
 
