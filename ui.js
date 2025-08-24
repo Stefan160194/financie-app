@@ -111,13 +111,24 @@ export function renderTransactions(transactionTableBody, noTransactionsMessage, 
     transactionTableBody.innerHTML = '';
     noTransactionsMessage.classList.toggle('hidden', filteredTransactions.length > 0);
     
+    let lastDate = null;
+    let isAlternateDay = false;
+
     filteredTransactions.forEach(transaction => {
+        const currentDate = dayjs(transaction.createdAt).format('YYYY-MM-DD');
+        if (currentDate !== lastDate) {
+            isAlternateDay = !isAlternateDay;
+            lastDate = currentDate;
+        }
+        
+        const rowBgClass = isAlternateDay ? 'bg-gray-800' : 'bg-gray-900/50';
+
         const isIncome = transaction.type === 'income';
         const amountClass = isIncome ? 'text-green-400' : 'text-red-400';
         const category = categories.find(c => c.id === transaction.categoryId) || { name: 'Nezaradené', icon: '❓' };
 
         const tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-700 hover:bg-gray-700/50 transition-colors';
+        tr.className = `${rowBgClass} border-b border-gray-700/50 hover:bg-gray-700/50 transition-colors`;
         tr.innerHTML = `
             <td class="p-4">${dayjs(transaction.createdAt).format('DD.MM.YYYY')}</td>
             <td class="p-4">${transaction.description}</td>
