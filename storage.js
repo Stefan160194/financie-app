@@ -1,10 +1,120 @@
-const STORAGE_KEYS = {
-    TRANSACTIONS: 'financeApp.transactions',
-    LIMITS: 'financeApp.limits',
-    BALANCE: 'financeApp.balance',
-    CATEGORIES: 'financeApp.categories',
-    CARD_STATES: 'financeApp.cardStates'
+// Importuj potrebné funkcie z Firebase SDK
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// --- Firebase Konfigurácia ---
+// !!! DÔLEŽITÉ: Uisti sa, že tu máš vloženú správnu konfiguráciu z tvojho Firebase projektu
+const firebaseConfig = {
+  apiKey: "AIzaSyAVARl3DeLbIKC4VxLKMAims5RWYuf-hsw",
+  authDomain: "financie-a372c.firebaseapp.com",
+  projectId: "financie-a372c",
+  storageBucket: "financie-a372c.firebasestorage.app",
+  messagingSenderId: "408930768206",
+  appId: "1:408930768206:web:3146be9da41c267efe3a1f"
 };
+
+
+// Inicializácia Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let userId = null;
+let dbUnsubscribe = null; // Funkcia na odhlásenie odberu zmien z databázy
+let localDataCache = null; // Lokálna cache pre dáta
+
+// Funkcia na prihlásenie anonymného používateľa
+function authenticateUser() {
+    return new Promise((resolve, reject) => {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                resolve(userId);
+            } else {
+                signInAnonymously(auth).catch(reject);
+            }
+        });
+    });
+}
+
+// Nová funkcia, ktorá nastaví "listener" na zmeny v databáze
+export function listenForDataChanges(onDataUpdate, onError) {
+    authenticateUser()
+        .then(uid => {
+            const docRef = doc(db, "userData", uid);
+            if (dbUnsubscribe) dbUnsubscribe();
+            
+            dbUnsubscribe = onSnapshot(docRef, (docSnap) => {
+                let data;
+                if (docSnap.exists()) {
+                    const remoteData = docSnap.data();
+                    const transactions = (remoteData.transactions || []).map(t => ({
+                        ...t,
+                        createdAt: t.createdAt.toDate() // Konvertuj Firebase Timestamp na Date
+                    }));
+                    data = { ...remoteData, transactions };
+                } else {
+                    data = getDefaultData();
+                    // Ulož predvolené dáta, ak používateľ ešte žiadne nemá
+                    saveAllData(data); 
+                }
+                localDataCache = data; // Ulož do lokálnej cache
+                onDataUpdate(data); // Zavolaj funkciu z main.js na prekreslenie UI
+            }, (error) => {
+                console.error("Error listening to data changes:", error);
+                onError(error);
+            });
+        })
+        .catch(authError => {
+            console.error("Authentication failed:", authError);
+            onError(authError);
+        });
+}
+
+
+// Funkcia na uloženie všetkých dát naraz
+function saveAllData(data) {
+     if (!userId) return Promise.reject("User not authenticated.");
+     const docRef = doc(db, "userData", userId);
+     
+     const dataToSave = {
+         ...data,
+         transactions: data.transactions.map(t => ({
+             ...t,
+             createdAt: Timestamp.fromDate(new Date(t.createdAt))
+         }))
+     };
+     
+     return setDoc(docRef, dataToSave);
+}
+
+// Optimalizované funkcie na ukladanie
+function updateData(partialData) {
+    if (!localDataCache) {
+        console.error("Data cache is not initialized.");
+        return Promise.reject("Data cache is not initialized.");
+    }
+    const updatedData = { ...localDataCache, ...partialData };
+    localDataCache = updatedData;
+    return saveAllData(updatedData);
+}
+
+export function saveTransactions(transactions) { return updateData({ transactions }); }
+export function saveAllLimits(limits) { return updateData({ limits }); }
+export function saveCategories(categories) { return updateData({ categories }); }
+export function saveBalance(balance) { return updateData({ balance }); }
+export function saveCardStates(cardStates) { return updateData({ cardStates }); }
+
+function getDefaultData() {
+    return {
+        transactions: [],
+        limits: {},
+        balance: 0,
+        categories: getDefaultCategories(),
+        cardStates: {}
+    };
+}
 
 function getDefaultCategories() {
     return [
@@ -20,77 +130,4 @@ function getDefaultCategories() {
         { id: 'cat-10', name: 'Darček', type: 'income', icon: '🎁' },
         { id: 'cat-11', name: 'Iné', type: 'income', icon: '➕' },
     ];
-}
-
-export function loadAllData() {
-    try {
-        const transactionsString = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]';
-        const transactions = JSON.parse(transactionsString).map(tr => ({
-            ...tr,
-            createdAt: new Date(tr.createdAt)
-        }));
-
-        const limitsString = localStorage.getItem(STORAGE_KEYS.LIMITS) || '{}';
-        const limits = JSON.parse(limitsString);
-
-        const balanceString = localStorage.getItem(STORAGE_KEYS.BALANCE) || '0';
-        const balance = parseFloat(balanceString);
-
-        const categoriesString = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-        let categories;
-        if (categoriesString) {
-            categories = JSON.parse(categoriesString);
-        } else {
-            categories = getDefaultCategories();
-            saveCategories(categories);
-        }
-
-        const cardStatesString = localStorage.getItem(STORAGE_KEYS.CARD_STATES) || '{}';
-        const cardStates = JSON.parse(cardStatesString);
-
-        return { transactions, limits, balance, categories, cardStates };
-    } catch (error) {
-        console.error("Error loading data from localStorage:", error);
-        return { transactions: [], limits: {}, balance: 0, categories: getDefaultCategories(), cardStates: {} };
-    }
-}
-
-export function saveTransactions(transactions) {
-    try {
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
-    } catch (error) {
-        console.error("Error saving transactions to localStorage:", error);
-    }
-}
-
-export function saveAllLimits(limits) {
-    try {
-        localStorage.setItem(STORAGE_KEYS.LIMITS, JSON.stringify(limits));
-    } catch (error) {
-        console.error("Error saving limits to localStorage:", error);
-    }
-}
-
-export function saveCategories(categories) {
-    try {
-        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-    } catch (error) {
-        console.error("Error saving categories to localStorage:", error);
-    }
-}
-
-export function saveBalance(balance) {
-    try {
-        localStorage.setItem(STORAGE_KEYS.BALANCE, balance.toString());
-    } catch (error) {
-        console.error("Error saving balance to localStorage:", error);
-    }
-}
-
-export function saveCardStates(states) {
-    try {
-        localStorage.setItem(STORAGE_KEYS.CARD_STATES, JSON.stringify(states));
-    } catch (error) {
-        console.error("Error saving card states to localStorage:", error);
-    }
 }
