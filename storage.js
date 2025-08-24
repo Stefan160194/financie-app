@@ -44,9 +44,11 @@ export function listenForDataChanges(userId, onDataUpdate, onError) {
         let data;
         if (docSnap.exists()) {
             const remoteData = docSnap.data();
+            // Konvertuj Firebase Timestamp na Date objekty
             const transactions = (remoteData.transactions || []).map(t => ({
                 ...t,
-                createdAt: t.createdAt.toDate() // Konvertuj Firebase Timestamp na Date
+                // Skontroluj, či createdAt existuje a je to Timestamp objekt
+                createdAt: t.createdAt && t.createdAt.toDate ? t.createdAt.toDate() : new Date(t.createdAt)
             }));
             data = { ...remoteData, transactions };
         } else {
@@ -62,11 +64,13 @@ export function listenForDataChanges(userId, onDataUpdate, onError) {
     });
 }
 
+
 // Funkcia na uloženie všetkých dát naraz
 function saveAllData(userId, data) {
      if (!userId) return Promise.reject("User not authenticated.");
      const docRef = doc(db, "userData", userId);
      
+     // Konvertuj Date objekty na Firebase Timestamp pred uložením
      const dataToSave = {
          ...data,
          transactions: data.transactions.map(t => ({
