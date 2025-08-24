@@ -18,63 +18,52 @@ const firebaseConfig = {
 // Inicializácia Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
-let userId = null;
 let dbUnsubscribe = null; // Funkcia na odhlásenie odberu zmien z databázy
 let localDataCache = null; // Lokálna cache pre dáta
 
-// Funkcia na prihlásenie anonymného používateľa
-function authenticateUser() {
-    return new Promise((resolve, reject) => {
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                resolve(userId);
-            } else {
-                signInAnonymously(auth).catch(reject);
-            }
-        });
+const USER_ID_KEY = 'financeApp.userId';
+
+// Funkcie na prácu s User ID v localStorage
+export function getUserId() { return localStorage.getItem(USER_ID_KEY); }
+export function setUserId(id) { localStorage.setItem(USER_ID_KEY, id); }
+export function clearUserId() { localStorage.removeItem(USER_ID_KEY); }
+
+// Funkcia, ktorá nastaví "listener" na zmeny v databáze
+export function listenForDataChanges(userId, onDataUpdate, onError) {
+    if (!userId) {
+        onError(new Error("User ID is not provided."));
+        return;
+    }
+
+    const docRef = doc(db, "userData", userId);
+    
+    if (dbUnsubscribe) dbUnsubscribe(); 
+    
+    dbUnsubscribe = onSnapshot(docRef, (docSnap) => {
+        let data;
+        if (docSnap.exists()) {
+            const remoteData = docSnap.data();
+            const transactions = (remoteData.transactions || []).map(t => ({
+                ...t,
+                createdAt: t.createdAt.toDate() // Konvertuj Firebase Timestamp na Date
+            }));
+            data = { ...remoteData, transactions };
+        } else {
+            data = getDefaultData();
+            // Ulož predvolené dáta, ak používateľ ešte žiadne nemá
+            saveAllData(userId, data); 
+        }
+        localDataCache = data; // Ulož do lokálnej cache
+        onDataUpdate(data); // Zavolaj funkciu z main.js na prekreslenie UI
+    }, (error) => {
+        console.error("Error listening to data changes:", error);
+        onError(error);
     });
 }
 
-// Nová funkcia, ktorá nastaví "listener" na zmeny v databáze
-export function listenForDataChanges(onDataUpdate, onError) {
-    authenticateUser()
-        .then(uid => {
-            const docRef = doc(db, "userData", uid);
-            if (dbUnsubscribe) dbUnsubscribe();
-            
-            dbUnsubscribe = onSnapshot(docRef, (docSnap) => {
-                let data;
-                if (docSnap.exists()) {
-                    const remoteData = docSnap.data();
-                    const transactions = (remoteData.transactions || []).map(t => ({
-                        ...t,
-                        createdAt: t.createdAt.toDate() // Konvertuj Firebase Timestamp na Date
-                    }));
-                    data = { ...remoteData, transactions };
-                } else {
-                    data = getDefaultData();
-                    // Ulož predvolené dáta, ak používateľ ešte žiadne nemá
-                    saveAllData(data); 
-                }
-                localDataCache = data; // Ulož do lokálnej cache
-                onDataUpdate(data); // Zavolaj funkciu z main.js na prekreslenie UI
-            }, (error) => {
-                console.error("Error listening to data changes:", error);
-                onError(error);
-            });
-        })
-        .catch(authError => {
-            console.error("Authentication failed:", authError);
-            onError(authError);
-        });
-}
-
-
 // Funkcia na uloženie všetkých dát naraz
-function saveAllData(data) {
+function saveAllData(userId, data) {
      if (!userId) return Promise.reject("User not authenticated.");
      const docRef = doc(db, "userData", userId);
      
@@ -91,13 +80,14 @@ function saveAllData(data) {
 
 // Optimalizované funkcie na ukladanie
 function updateData(partialData) {
-    if (!localDataCache) {
-        console.error("Data cache is not initialized.");
-        return Promise.reject("Data cache is not initialized.");
+    const userId = getUserId();
+    if (!userId || !localDataCache) {
+        console.error("User ID or data cache is not initialized.");
+        return Promise.reject("User ID or data cache is not initialized.");
     }
     const updatedData = { ...localDataCache, ...partialData };
     localDataCache = updatedData;
-    return saveAllData(updatedData);
+    return saveAllData(userId, updatedData);
 }
 
 export function saveTransactions(transactions) { return updateData({ transactions }); }
