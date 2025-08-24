@@ -4,7 +4,7 @@ import * as ui from './ui.js';
 // --- Global State ---
 let currentDate = new Date(); // To track the currently viewed month
 let currentBarChartView = 'both'; // 'both', 'expense', 'income' for the bar chart
-let currentChartType = 'bar'; // 'bar' or 'pie'
+let currentChartType = 'bar'; // 'bar', 'pie', or 'line'
 let activeCategoryFilters = new Set();
 let appData = {}; // Lokálna kópia všetkých dát
 
@@ -49,10 +49,12 @@ const nextMonthBtn = document.getElementById('nextMonthBtn');
 const currentMonthDisplay = document.getElementById('currentMonthDisplay');
 const barChartCanvas = document.getElementById('expensesChart');
 const pieChartCanvas = document.getElementById('categoryPieChart');
+const lineChartCanvas = document.getElementById('trendsLineChart');
 const chartFilterToggle = document.getElementById('chartFilterToggle');
 const chartTypeToggle = document.getElementById('chartTypeToggle');
 const barChartContainer = document.getElementById('barChartContainer');
 const pieChartContainer = document.getElementById('pieChartContainer');
+const lineChartContainer = document.getElementById('lineChartContainer');
 const categoryForm = document.getElementById('categoryForm');
 const categoryNameInput = document.getElementById('categoryName');
 const categoryIconInput = document.getElementById('categoryIcon');
@@ -87,11 +89,13 @@ const uiElementsForSummary = {
 };
 
 // --- Chart Rendering Logic ---
-function updateCharts(transactions, categories) {
+function updateCharts(transactionsForCurrentMonth, allTransactions, categories, balance) {
     if (currentChartType === 'bar') {
-        ui.renderBarChart(barChartCanvas, currentDate, transactions, currentBarChartView);
+        ui.renderBarChart(barChartCanvas, currentDate, transactionsForCurrentMonth, allTransactions, balance, currentBarChartView);
     } else if (currentChartType === 'pie') {
-        ui.renderPieChart(pieChartCanvas, transactions, categories);
+        ui.renderPieChart(pieChartCanvas, transactionsForCurrentMonth, categories);
+    } else if (currentChartType === 'line') {
+        ui.renderLineChart(lineChartCanvas, allTransactions);
     }
 }
 
@@ -129,7 +133,7 @@ function refreshDisplay() {
     ui.updateSummary(uiElementsForSummary, transactionsForCurrentMonth, allTransactions, balance, limitsForCurrentMonth.monthly || 0, limitsForCurrentMonth.daily || 0, currentDate);
     ui.renderCategorySummary(categorySummaryList, transactionsForCurrentMonth, categories);
     ui.renderMerchantSummary(merchantSummaryList, transactionsForCurrentMonth);
-    updateCharts(transactionsForCurrentMonth, categories);
+    updateCharts(transactionsForCurrentMonth, allTransactions, categories, balance);
     ui.renderCategories(categoryList, categories);
     ui.renderCategoryFilters(categoryFilterList, categories, activeCategoryFilters);
     const currentTransactionType = transactionForm.querySelector('input[name="transactionType"]:checked').value;
@@ -391,7 +395,7 @@ editCategoryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = editCategoryIdInput.value;
     const name = editCategoryNameInput.value.trim();
-    const icon = editCategoryIconInput.value.trim() || '💼';
+    const icon = editCategoryIconInput.value.trim() || '�';
     const type = editCategoryForm.querySelector('input[name="editCategoryType"]:checked').value;
 
     if (name) {
@@ -475,6 +479,7 @@ chartTypeToggle.addEventListener('click', (e) => {
         
         barChartContainer.classList.toggle('hidden', currentChartType !== 'bar');
         pieChartContainer.classList.toggle('hidden', currentChartType !== 'pie');
+        lineChartContainer.classList.toggle('hidden', currentChartType !== 'line');
         
         refreshDisplay();
     }
