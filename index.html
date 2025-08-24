@@ -226,6 +226,36 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Category Summary Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="category-summary">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Sumár Kategórií</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <div id="categorySummaryList" class="space-y-4 max-h-80 overflow-y-auto pr-2 transaction-list-container">
+                            <!-- Category summaries will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Merchant Summary Card -->
+                <div class="bg-gray-800 rounded-2xl shadow-lg card-wrapper" data-card-id="merchant-summary">
+                    <div class="p-6 flex justify-between items-center cursor-pointer card-header">
+                        <h2 class="text-2xl font-semibold">Sumár Obchodov</h2>
+                        <button class="toggle-card-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    </div>
+                    <div class="px-6 card-content">
+                        <div id="merchantSummaryList" class="space-y-4 max-h-80 overflow-y-auto pr-2 transaction-list-container">
+                            <!-- Merchant summaries will be rendered here -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Column: Form & Table -->
@@ -291,9 +321,9 @@
                             </button>
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="transaction-list-container max-h-96 overflow-y-auto overflow-x-auto">
                         <table class="w-full text-left">
-                            <thead class="bg-gray-700/50">
+                            <thead class="bg-gray-700/50 sticky top-0">
                                 <tr>
                                     <th class="p-4 text-sm font-semibold uppercase tracking-wider">Dátum</th>
                                     <th class="p-4 text-sm font-semibold uppercase tracking-wider">Popis</th>
@@ -314,14 +344,30 @@
                 <div class="bg-gray-800 p-6 rounded-2xl shadow-lg">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-2xl font-semibold">Mesačný Prehľad</h2>
-                        <div id="chartToggle" class="flex rounded-lg bg-gray-700 p-1">
-                            <button data-view="both" class="chart-toggle-btn active px-3 py-1 text-sm font-semibold rounded-md">Oboje</button>
-                            <button data-view="expense" class="chart-toggle-btn px-3 py-1 text-sm font-semibold rounded-md">Výdavky</button>
-                            <button data-view="income" class="chart-toggle-btn px-3 py-1 text-sm font-semibold rounded-md">Príjmy</button>
+                        <div id="chartTypeToggle" class="flex rounded-lg bg-gray-700 p-1">
+                            <button data-chart="bar" class="chart-type-btn active px-3 py-1 text-sm font-semibold rounded-md">Denný pohľad</button>
+                            <button data-chart="pie" class="chart-type-btn px-3 py-1 text-sm font-semibold rounded-md">Pohľad na kategórie</button>
                         </div>
                     </div>
-                    <div class="relative h-96">
-                        <canvas id="expensesChart"></canvas>
+
+                    <!-- Bar Chart Container -->
+                    <div id="barChartContainer">
+                        <div id="chartFilterToggle" class="flex rounded-lg bg-gray-700 p-1 mb-4">
+                            <button data-view="both" class="chart-filter-btn active px-3 py-1 text-sm font-semibold rounded-md">Oboje</button>
+                            <button data-view="expense" class="chart-filter-btn px-3 py-1 text-sm font-semibold rounded-md">Výdavky</button>
+                            <button data-view="income" class="chart-filter-btn px-3 py-1 text-sm font-semibold rounded-md">Príjmy</button>
+                        </div>
+                        <div class="relative h-96">
+                            <canvas id="expensesChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Pie Chart Container -->
+                    <div id="pieChartContainer" class="hidden">
+                        <p class="text-center text-gray-400 mb-4 text-sm">Zobrazujú sa iba výdavky pre vybraný mesiac.</p>
+                        <div class="relative h-96">
+                            <canvas id="categoryPieChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
