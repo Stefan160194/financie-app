@@ -396,14 +396,14 @@ export function renderTransactions(transactionTableBody, noTransactionsMessage, 
             lastDate = currentDate;
         }
         
-        const rowBgClass = isAlternateDay ? 'bg-gray-800' : 'bg-gray-900/50';
+        const rowBgClass = isAlternateDay ? 'bg-black/10' : 'bg-transparent';
 
         const isIncome = transaction.type === 'income';
         const amountClass = isIncome ? 'text-green-400' : 'text-red-400';
         const category = categories.find(c => c.id === transaction.categoryId) || { name: 'Nezaradené', icon: '❓' };
 
         const tr = document.createElement('tr');
-        tr.className = `${rowBgClass} border-b border-gray-700/50 hover:bg-gray-700/50 transition-colors text-sm`;
+        tr.className = `${rowBgClass} border-b border-white/5 hover:bg-white/5 transition-colors text-sm`;
         tr.innerHTML = `
             <td class="py-3 px-4 whitespace-nowrap">${dayjs(transaction.createdAt).format('DD.MM.YYYY')}</td>
             <td class="py-3 px-4 max-w-[150px] md:max-w-xs truncate" title="${transaction.description}">${transaction.description}</td>
@@ -444,8 +444,8 @@ export function updateSummary(elements, filteredTransactions, allTransactions, b
     const progressPercentage = monthlyLimit > 0 ? (monthlyExpenses / monthlyLimit) * 100 : 0;
     elements.progressBar.style.width = `${Math.min(progressPercentage, 100)}%`;
     elements.progressBar.classList.toggle('bg-red-500', progressPercentage > 100);
-    elements.progressBar.classList.toggle('from-blue-500', progressPercentage <= 100);
-    elements.progressBar.classList.toggle('to-teal-400', progressPercentage <= 100);
+    elements.progressBar.classList.toggle('from-violet-500', progressPercentage <= 100);
+    elements.progressBar.classList.toggle('to-fuchsia-500', progressPercentage <= 100);
 
     if(dailyLimit > 0) {
         const today = dayjs().startOf('day');
@@ -475,7 +475,7 @@ export function renderCategories(categoryList, categories) {
     categoryList.innerHTML = '';
     categories.forEach(cat => {
         const li = document.createElement('li');
-        li.className = 'flex justify-between items-center bg-gray-700 p-2 rounded';
+        li.className = 'flex justify-between items-center bg-gray-900/50 p-2 rounded-lg';
         li.innerHTML = `
             <span class="flex items-center gap-2">${cat.icon} <span class="text-sm">${cat.name}</span></span>
             <div class="flex items-center gap-2">
@@ -563,7 +563,7 @@ export function renderCategorySummary(summaryListElement, transactions, categori
                     <span class="text-xs text-gray-400">${percentage.toFixed(1)}%</span>
                 </div>
             </div>
-            <div class="w-full bg-gray-700 rounded-full h-2.5">
+            <div class="w-full bg-gray-900/50 rounded-full h-2.5">
                 <div class="bg-pink-600 h-2.5 rounded-full" style="width: ${percentage.toFixed(2)}%"></div>
             </div>
         `;
@@ -615,7 +615,7 @@ export function renderMerchantSummary(summaryListElement, transactions) {
                     <span class="text-xs text-gray-400">${percentage.toFixed(1)}%</span>
                 </div>
             </div>
-            <div class="w-full bg-gray-700 rounded-full h-2.5">
+            <div class="w-full bg-gray-900/50 rounded-full h-2.5">
                 <div class="bg-teal-500 h-2.5 rounded-full" style="width: ${percentage.toFixed(2)}%"></div>
             </div>
         `;
