@@ -3,7 +3,8 @@ import * as ui from './ui.js';
 
 // --- Global State ---
 let currentDate = new Date(); // To track the currently viewed month
-let currentChartView = 'both'; // 'both', 'expense', 'income'
+let currentBarChartView = 'both'; // 'both', 'expense', 'income' for the bar chart
+let currentChartType = 'bar'; // 'bar' or 'pie'
 let activeCategoryFilters = new Set();
 let appData = {}; // Lokálna kópia všetkých dát
 
@@ -46,8 +47,12 @@ const confirmButton = document.getElementById('confirmButton');
 const prevMonthBtn = document.getElementById('prevMonthBtn');
 const nextMonthBtn = document.getElementById('nextMonthBtn');
 const currentMonthDisplay = document.getElementById('currentMonthDisplay');
-const chartCanvas = document.getElementById('expensesChart');
-const chartToggle = document.getElementById('chartToggle');
+const barChartCanvas = document.getElementById('expensesChart');
+const pieChartCanvas = document.getElementById('categoryPieChart');
+const chartFilterToggle = document.getElementById('chartFilterToggle');
+const chartTypeToggle = document.getElementById('chartTypeToggle');
+const barChartContainer = document.getElementById('barChartContainer');
+const pieChartContainer = document.getElementById('pieChartContainer');
 const categoryForm = document.getElementById('categoryForm');
 const categoryNameInput = document.getElementById('categoryName');
 const categoryIconInput = document.getElementById('categoryIcon');
@@ -73,11 +78,22 @@ const exportDataBtn = document.getElementById('exportDataBtn');
 const importDataBtn = document.getElementById('importDataBtn');
 const importFileInput = document.getElementById('importFileInput');
 const cardHeaders = document.querySelectorAll('.card-header');
+const categorySummaryList = document.getElementById('categorySummaryList');
+const merchantSummaryList = document.getElementById('merchantSummaryList');
 
 const uiElementsForSummary = {
     monthlyIncomeEl, totalSpentEl, monthlyBalanceEl, summaryMonthlyLimitEl,
     progressBar, dailyStatusEl, currentBalanceDisplay, avgDailyExpenseEl
 };
+
+// --- Chart Rendering Logic ---
+function updateCharts(transactions, categories) {
+    if (currentChartType === 'bar') {
+        ui.renderBarChart(barChartCanvas, currentDate, transactions, currentBarChartView);
+    } else if (currentChartType === 'pie') {
+        ui.renderPieChart(pieChartCanvas, transactions, categories);
+    }
+}
 
 // Hlavná funkcia na prekreslenie celého UI
 function refreshDisplay() {
@@ -97,20 +113,23 @@ function refreshDisplay() {
     const startOfMonth = dayjs(currentDate).startOf('month');
     const endOfMonth = dayjs(currentDate).endOf('month');
 
-    let filteredTransactions = allTransactions.filter(t => {
+    let transactionsForCurrentMonth = allTransactions.filter(t => {
         const tDate = dayjs(t.createdAt);
         return !tDate.isBefore(startOfMonth) && !tDate.isAfter(endOfMonth);
     });
 
+    let filteredTransactionsForTable = [...transactionsForCurrentMonth];
     if (activeCategoryFilters.size > 0 && activeCategoryFilters.size < categories.length) {
-        filteredTransactions = filteredTransactions.filter(t => activeCategoryFilters.has(t.categoryId) || !t.categoryId);
+        filteredTransactionsForTable = filteredTransactionsForTable.filter(t => activeCategoryFilters.has(t.categoryId) || !t.categoryId);
     }
 
-    filteredTransactions.sort((a, b) => b.createdAt - a.createdAt);
+    filteredTransactionsForTable.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
-    ui.renderTransactions(transactionTableBody, noTransactionsMessage, filteredTransactions, categories);
-    ui.updateSummary(uiElementsForSummary, filteredTransactions, allTransactions, balance, limitsForCurrentMonth.monthly || 0, limitsForCurrentMonth.daily || 0, currentDate);
-    ui.renderChart(chartCanvas, currentDate, filteredTransactions, currentChartView);
+    ui.renderTransactions(transactionTableBody, noTransactionsMessage, filteredTransactionsForTable, categories);
+    ui.updateSummary(uiElementsForSummary, transactionsForCurrentMonth, allTransactions, balance, limitsForCurrentMonth.monthly || 0, limitsForCurrentMonth.daily || 0, currentDate);
+    ui.renderCategorySummary(categorySummaryList, transactionsForCurrentMonth, categories);
+    ui.renderMerchantSummary(merchantSummaryList, transactionsForCurrentMonth);
+    updateCharts(transactionsForCurrentMonth, categories);
     ui.renderCategories(categoryList, categories);
     ui.renderCategoryFilters(categoryFilterList, categories, activeCategoryFilters);
     const currentTransactionType = transactionForm.querySelector('input[name="transactionType"]:checked').value;
@@ -190,12 +209,12 @@ cancelEditButton.addEventListener('click', closeEditModal);
 cancelEditCategoryButton.addEventListener('click', closeEditCategoryModal);
 
 prevMonthBtn.addEventListener('click', () => {
-    currentDate.setMonth(currentDate.getMonth() - 1);
+    currentDate = dayjs(currentDate).subtract(1, 'month').toDate();
     refreshDisplay();
 });
 
 nextMonthBtn.addEventListener('click', () => {
-    currentDate.setMonth(currentDate.getMonth() + 1);
+    currentDate = dayjs(currentDate).add(1, 'month').toDate();
     refreshDisplay();
 });
 
@@ -438,11 +457,25 @@ cardHeaders.forEach(header => {
     });
 });
 
-chartToggle.addEventListener('click', (e) => {
-    if (e.target.matches('.chart-toggle-btn')) {
-        currentChartView = e.target.dataset.view;
-        chartToggle.querySelectorAll('.chart-toggle-btn').forEach(btn => btn.classList.remove('active'));
+chartFilterToggle.addEventListener('click', (e) => {
+    if (e.target.matches('.chart-filter-btn')) {
+        currentBarChartView = e.target.dataset.view;
+        chartFilterToggle.querySelectorAll('.chart-filter-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
+        refreshDisplay();
+    }
+});
+
+chartTypeToggle.addEventListener('click', (e) => {
+    if (e.target.matches('.chart-type-btn')) {
+        currentChartType = e.target.dataset.chart;
+        
+        chartTypeToggle.querySelectorAll('.chart-type-btn').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        barChartContainer.classList.toggle('hidden', currentChartType !== 'bar');
+        pieChartContainer.classList.toggle('hidden', currentChartType !== 'pie');
+        
         refreshDisplay();
     }
 });
