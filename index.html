@@ -10,6 +10,46 @@
 </head>
 <body class="bg-gray-900 text-white antialiased">
 
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-md m-4">
+            <h2 class="text-2xl font-bold text-center mb-2">Vitajte!</h2>
+            <p class="text-center text-gray-400 mb-6">Pre prístup k dátam sa prihláste alebo vytvorte nový účet.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="userIdInput" class="block text-sm font-medium text-gray-300 mb-1">Prihlásiť sa s existujúcim ID</label>
+                    <input type="text" id="userIdInput" placeholder="Vložte vaše ID" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                </div>
+                <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">Prihlásiť sa</button>
+            </div>
+
+            <div class="my-6 flex items-center text-center">
+                <hr class="flex-1 border-gray-600">
+                <span class="px-4 text-sm text-gray-500">ALEBO</span>
+                <hr class="flex-1 border-gray-600">
+            </div>
+
+            <button id="createNewUserBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">Vytvoriť Nový Účet</button>
+        </div>
+    </div>
+
+    <!-- User ID Display Modal -->
+    <div id="userIdDisplayModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-md m-4 text-center">
+            <h2 class="text-2xl font-bold mb-2">Váš Nový Účet Bol Vytvorený!</h2>
+            <p class="text-gray-400 mb-4">Toto je vaše unikátne ID. Dôkladne si ho uschovajte, aby ste sa mohli prihlásiť na iných zariadeniach.</p>
+            <div class="bg-gray-900 p-4 rounded-lg flex items-center justify-between">
+                <code id="newUserId" class="text-lg font-mono text-yellow-400"></code>
+                <button id="copyUserIdBtn" title="Kopírovať ID">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+            </div>
+            <button id="closeUserIdModalBtn" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">Rozumiem, pokračovať</button>
+        </div>
+    </div>
+
+
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
         <header class="mb-12 anim-header">
             <div class="flex justify-between items-center">
@@ -21,12 +61,10 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold text-gray-200">Finančný Prehľad</h1>
-                        <p class="text-sm text-gray-400">Vitajte späť!</p>
+                        <p id="userIdDisplay" class="text-xs text-gray-500 cursor-pointer" title="Klikni pre zobrazenie ID"></p>
                     </div>
                 </div>
-                 <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-gray-400 font-bold text-sm">
-                    S
-                </div>
+                 <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Odhlásiť sa</button>
             </div>
         </header>
 
