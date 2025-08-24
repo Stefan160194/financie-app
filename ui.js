@@ -1,4 +1,5 @@
-let expensesChartInstance = null;
+let barChartInstance = null;
+let pieChartInstance = null;
 
 export function formatCurrency(value) {
     return new Intl.NumberFormat('sk-SK', { style: 'currency', currency: 'EUR' }).format(value);
@@ -16,7 +17,7 @@ export function updateMonthDisplay(currentMonthDisplay, currentDate) {
     currentMonthDisplay.textContent = dayjs(currentDate).format('MMMM YYYY');
 };
 
-export function renderChart(chartCanvas, currentDate, transactions, chartView = 'both') {
+export function renderBarChart(chartCanvas, currentDate, transactions, chartView = 'both') {
     const daysInMonth = dayjs(currentDate).daysInMonth();
     const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const incomeData = Array(daysInMonth).fill(0);
@@ -31,8 +32,8 @@ export function renderChart(chartCanvas, currentDate, transactions, chartView = 
         }
     });
 
-    if (expensesChartInstance) {
-        expensesChartInstance.destroy();
+    if (barChartInstance) {
+        barChartInstance.destroy();
     }
 
     const datasets = [];
@@ -60,7 +61,7 @@ export function renderChart(chartCanvas, currentDate, transactions, chartView = 
     }
 
 
-    expensesChartInstance = new Chart(chartCanvas, {
+    barChartInstance = new Chart(chartCanvas, {
         type: 'bar',
         data: {
             labels: labels,
@@ -107,6 +108,138 @@ export function renderChart(chartCanvas, currentDate, transactions, chartView = 
     });
 }
 
+export function renderPieChart(chartCanvas, transactions, categories) {
+    if (pieChartInstance) {
+        pieChartInstance.destroy();
+    }
+
+    // A more professional color palette
+    const PIE_CHART_COLORS = [
+        '#4338ca', '#db2777', '#f59e0b', '#10b981', '#2563eb',
+        '#9333ea', '#ec4899', '#facc15', '#22c55e', '#3b82f6',
+        '#a855f7', '#f472b6', '#fbbf24', '#4ade80', '#60a5fa'
+    ];
+
+    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+    const expensesByCategory = expenseTransactions.reduce((acc, transaction) => {
+        const categoryId = transaction.categoryId || 'uncategorized';
+        if (!acc[categoryId]) {
+            acc[categoryId] = 0;
+        }
+        acc[categoryId] += transaction.amount;
+        return acc;
+    }, {});
+
+    const categoryMap = categories.reduce((map, cat) => {
+        map[cat.id] = cat;
+        return map;
+    }, {});
+
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+
+    const sortedCategories = Object.keys(expensesByCategory).sort((a, b) => expensesByCategory[b] - expensesByCategory[a]);
+
+    sortedCategories.forEach((categoryId, index) => {
+        const category = categoryMap[categoryId];
+        const label = category ? `${category.icon} ${category.name}` : '❓ Nezaradené';
+        labels.push(label);
+        data.push(expensesByCategory[categoryId]);
+        backgroundColors.push(PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]);
+    });
+    
+    const totalExpenses = data.reduce((sum, value) => sum + value, 0);
+
+    if (data.length === 0) {
+        const ctx = chartCanvas.getContext('2d');
+        ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+        ctx.fillStyle = '#6b7280';
+        ctx.textAlign = 'center';
+        ctx.font = '16px Inter, sans-serif';
+        ctx.fillText('V tomto mesiaci nie sú žiadne výdavky na zobrazenie.', chartCanvas.width / 2, chartCanvas.height / 2);
+        return;
+    }
+
+    // Custom plugin to draw text in the center of the doughnut chart
+    const centerTextPlugin = {
+        id: 'centerText',
+        afterDraw: (chart) => {
+            const { ctx } = chart;
+            if (totalExpenses === 0) return;
+
+            ctx.save();
+            const centerX = chart.getDatasetMeta(0).data[0].x;
+            const centerY = chart.getDatasetMeta(0).data[0].y;
+            
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Total Amount Text
+            ctx.font = 'bold 2rem Inter, sans-serif';
+            ctx.fillStyle = '#f9fafb'; // text-gray-50
+            ctx.fillText(formatCurrency(totalExpenses), centerX, centerY - 15);
+
+            // Label Text
+            ctx.font = '0.875rem Inter, sans-serif'; // text-sm
+            ctx.fillStyle = '#9ca3af'; // text-gray-400
+            ctx.fillText('Celkové výdavky', centerX, centerY + 15);
+            ctx.restore();
+        }
+    };
+
+    pieChartInstance = new Chart(chartCanvas, {
+        type: 'doughnut', // Changed from 'pie' to 'doughnut'
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Výdavky podľa kategórií',
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: '#1f2937', // bg-gray-800
+                borderWidth: 3,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%', // This creates the doughnut hole
+            plugins: {
+                legend: {
+                    position: 'right', // Move legend to the right
+                    labels: {
+                        color: '#d1d5db', // text-gray-300
+                        boxWidth: 20,
+                        padding: 20,
+                        font: {
+                            size: 14
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw;
+                            const total = context.chart.getDatasetMeta(0).total;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                        }
+                    },
+                    backgroundColor: '#374151', // bg-gray-700
+                    titleFont: { size: 16 },
+                    bodyFont: { size: 14 },
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            }
+        },
+        plugins: [centerTextPlugin] // Register the custom plugin
+    });
+}
+
+
 export function renderTransactions(transactionTableBody, noTransactionsMessage, filteredTransactions, categories) {
     transactionTableBody.innerHTML = '';
     noTransactionsMessage.classList.toggle('hidden', filteredTransactions.length > 0);
@@ -128,13 +261,13 @@ export function renderTransactions(transactionTableBody, noTransactionsMessage, 
         const category = categories.find(c => c.id === transaction.categoryId) || { name: 'Nezaradené', icon: '❓' };
 
         const tr = document.createElement('tr');
-        tr.className = `${rowBgClass} border-b border-gray-700/50 hover:bg-gray-700/50 transition-colors`;
+        tr.className = `${rowBgClass} border-b border-gray-700/50 hover:bg-gray-700/50 transition-colors text-sm`;
         tr.innerHTML = `
-            <td class="p-4">${dayjs(transaction.createdAt).format('DD.MM.YYYY')}</td>
-            <td class="p-4">${transaction.description}</td>
-            <td class="p-4"><span class="flex items-center gap-2">${category.icon} <span>${category.name}</span></span></td>
-            <td class="p-4 text-right font-mono font-semibold ${amountClass}">${isIncome ? '+' : ''}${formatCurrency(transaction.amount)}</td>
-            <td class="p-4 text-center">
+            <td class="py-3 px-4 whitespace-nowrap">${dayjs(transaction.createdAt).format('DD.MM.YYYY')}</td>
+            <td class="py-3 px-4 max-w-[150px] md:max-w-xs truncate" title="${transaction.description}">${transaction.description}</td>
+            <td class="py-3 px-4 whitespace-nowrap"><span class="flex items-center gap-2">${category.icon} <span>${category.name}</span></span></td>
+            <td class="py-3 px-4 text-right font-mono font-semibold whitespace-nowrap ${amountClass}">${isIncome ? '+' : ''}${formatCurrency(transaction.amount)}</td>
+            <td class="py-3 px-4 text-center">
                 <div class="flex justify-center items-center">
                     <button data-id="${transaction.id}" class="edit-btn text-blue-400 hover:text-blue-600 transition-colors p-1" title="Upraviť">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
@@ -238,5 +371,112 @@ export function populateCategoryDropdowns(categories, type = 'expense', selectEl
         option.value = cat.id;
         option.textContent = `${cat.icon} ${cat.name}`;
         selectElement.appendChild(option);
+    });
+}
+
+export function renderCategorySummary(summaryListElement, transactions, categories) {
+    summaryListElement.innerHTML = ''; // Clear previous content
+
+    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+    const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    if (totalExpenses === 0) {
+        summaryListElement.innerHTML = '<p class="text-center text-gray-500 py-4">Žiadne výdavky v tomto mesiaci.</p>';
+        return;
+    }
+
+    const expensesByCategory = expenseTransactions.reduce((acc, transaction) => {
+        const categoryId = transaction.categoryId || 'uncategorized';
+        if (!acc[categoryId]) {
+            acc[categoryId] = 0;
+        }
+        acc[categoryId] += transaction.amount;
+        return acc;
+    }, {});
+
+    const categoryMap = categories.reduce((map, cat) => {
+        map[cat.id] = cat;
+        return map;
+    }, {});
+    
+    // Create an array of category summaries to sort them
+    const categorySummaries = Object.keys(expensesByCategory).map(categoryId => {
+        const amount = expensesByCategory[categoryId];
+        const category = categoryMap[categoryId] || { name: 'Nezaradené', icon: '❓' };
+        const percentage = (amount / totalExpenses) * 100;
+        return { category, amount, percentage };
+    });
+
+    // Sort by amount descending
+    categorySummaries.sort((a, b) => b.amount - a.amount);
+
+    // Generate and append HTML for each category
+    categorySummaries.forEach(({ category, amount, percentage }) => {
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <div class="flex justify-between items-center mb-1 text-sm">
+                <span class="flex items-center gap-2">${category.icon} ${category.name}</span>
+                <div class="text-right">
+                    <span class="font-semibold block">${formatCurrency(amount)}</span>
+                    <span class="text-xs text-gray-400">${percentage.toFixed(1)}%</span>
+                </div>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                <div class="bg-pink-600 h-2.5 rounded-full" style="width: ${percentage.toFixed(2)}%"></div>
+            </div>
+        `;
+        summaryListElement.appendChild(div);
+    });
+}
+
+export function renderMerchantSummary(summaryListElement, transactions) {
+    summaryListElement.innerHTML = ''; // Clear previous content
+
+    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+    const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    if (totalExpenses === 0) {
+        summaryListElement.innerHTML = '<p class="text-center text-gray-500 py-4">Žiadne výdavky v tomto mesiaci.</p>';
+        return;
+    }
+
+    const expensesByDescription = expenseTransactions.reduce((acc, transaction) => {
+        const description = transaction.description.trim().toLowerCase();
+        if (!description) return acc; // Skip empty descriptions
+        if (!acc[description]) {
+            acc[description] = 0;
+        }
+        acc[description] += transaction.amount;
+        return acc;
+    }, {});
+    
+    // Create an array of merchant summaries to sort them
+    const merchantSummaries = Object.keys(expensesByDescription).map(description => {
+        const amount = expensesByDescription[description];
+        const percentage = (amount / totalExpenses) * 100;
+        // Capitalize first letter for display
+        const displayName = description.charAt(0).toUpperCase() + description.slice(1);
+        return { displayName, amount, percentage };
+    });
+
+    // Sort by amount descending
+    merchantSummaries.sort((a, b) => b.amount - a.amount);
+
+    // Generate and append HTML for each merchant
+    merchantSummaries.forEach(({ displayName, amount, percentage }) => {
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <div class="flex justify-between items-center mb-1 text-sm">
+                <span class="flex items-center gap-2 truncate" title="${displayName}">${displayName}</span>
+                <div class="text-right flex-shrink-0">
+                    <span class="font-semibold block">${formatCurrency(amount)}</span>
+                    <span class="text-xs text-gray-400">${percentage.toFixed(1)}%</span>
+                </div>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                <div class="bg-teal-500 h-2.5 rounded-full" style="width: ${percentage.toFixed(2)}%"></div>
+            </div>
+        `;
+        summaryListElement.appendChild(div);
     });
 }
