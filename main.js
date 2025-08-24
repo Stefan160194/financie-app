@@ -8,6 +8,17 @@ let activeCategoryFilters = new Set();
 let appData = {}; // Lokálna kópia všetkých dát
 
 // --- DOM Elements ---
+const authModal = document.getElementById('authModal');
+const userIdInput = document.getElementById('userIdInput');
+const loginBtn = document.getElementById('loginBtn');
+const createNewUserBtn = document.getElementById('createNewUserBtn');
+const userIdDisplayModal = document.getElementById('userIdDisplayModal');
+const newUserIdEl = document.getElementById('newUserId');
+const copyUserIdBtn = document.getElementById('copyUserIdBtn');
+const closeUserIdModalBtn = document.getElementById('closeUserIdModalBtn');
+const userIdDisplay = document.getElementById('userIdDisplay');
+const logoutBtn = document.getElementById('logoutBtn');
+
 const initialBalanceInput = document.getElementById('initialBalance');
 const currentBalanceDisplay = document.getElementById('currentBalanceDisplay');
 const monthlyLimitInput = document.getElementById('monthlyLimit');
@@ -70,7 +81,7 @@ const uiElementsForSummary = {
 
 // Hlavná funkcia na prekreslenie celého UI
 function refreshDisplay() {
-    if (!appData || !appData.transactions) return; // Počkaj, kým sa načítajú dáta
+    if (!appData || !appData.transactions) return; 
 
     ui.updateMonthDisplay(currentMonthDisplay, currentDate);
     
@@ -459,18 +470,66 @@ deselectAllCategoriesBtn.addEventListener('click', () => {
     refreshDisplay();
 });
 
+// --- Authentication Handlers ---
+loginBtn.addEventListener('click', () => {
+    const userId = userIdInput.value.trim();
+    if (userId) {
+        initializeApp(userId);
+    } else {
+        ui.showMessage(messageBox, "Prosím, zadajte platné ID.", "error");
+    }
+});
+
+createNewUserBtn.addEventListener('click', () => {
+    const newId = crypto.randomUUID();
+    newUserIdEl.textContent = newId;
+    userIdDisplayModal.classList.remove('hidden');
+});
+
+closeUserIdModalBtn.addEventListener('click', () => {
+    const newId = newUserIdEl.textContent;
+    userIdDisplayModal.classList.add('hidden');
+    initializeApp(newId);
+});
+
+copyUserIdBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(newUserIdEl.textContent);
+    ui.showMessage(messageBox, "ID skopírované do schránky!");
+});
+
+logoutBtn.addEventListener('click', () => {
+    storage.clearUserId();
+    location.reload();
+});
+
+userIdDisplay.addEventListener('click', () => {
+    const userId = storage.getUserId();
+    if (userId) {
+        newUserIdEl.textContent = userId;
+        userIdDisplayModal.classList.remove('hidden');
+    }
+});
 
 // --- Initialization ---
-function init() {
-    storage.listenForDataChanges(
-        (data) => {
-            handleDataUpdate(data);
-        },
-        (error) => {
-            ui.showMessage(messageBox, "Nepodarilo sa pripojiť k databáze. Skontrolujte nastavenia Firebase.", "error");
-        }
-    );
+function initializeApp(userId) {
+    storage.setUserId(userId);
+    authModal.classList.add('hidden');
+    userIdDisplay.textContent = `ID: ${userId.slice(0, 8)}...`;
 
+    storage.listenForDataChanges(
+        userId,
+        (data) => handleDataUpdate(data),
+        (error) => ui.showMessage(messageBox, "Nepodarilo sa načítať dáta.", "error")
+    );
+}
+
+function init() {
+    const userId = storage.getUserId();
+    if (userId) {
+        initializeApp(userId);
+    } else {
+        authModal.classList.remove('hidden');
+    }
     transactionDateInput.value = dayjs().format('YYYY-MM-DD');
 }
 
